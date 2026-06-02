@@ -23,5 +23,3 @@ dist-ssr
 *.sln
 *.sw?
 
-# Ignore image sequence symlink/junction
-/public/seq
