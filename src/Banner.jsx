@@ -93,19 +93,17 @@ export default function Banner() {
     window.addEventListener('resize', resizeAll);
 
     // --- Trail & Distortion Setup ---
-    const brushRadius = 80; // Bigger brush at the cursor
+    const brushRadius = 150; // Massive soft brush for smoky look
     const brushSize = brushRadius * 2;
     const brushCanvas = document.createElement('canvas');
     brushCanvas.width = brushSize;
     brushCanvas.height = brushSize;
     const ctx = brushCanvas.getContext('2d');
     
-    ctx.fillStyle = '#808080';
-    ctx.fillRect(0, 0, brushSize, brushSize);
-    
+    // Create a very soft, low-opacity white brush. Overlapping these creates a smoky smudge.
     const gradient = ctx.createRadialGradient(brushRadius, brushRadius, 0, brushRadius, brushRadius, brushRadius);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); 
-    gradient.addColorStop(1, 'rgba(128, 128, 128, 0)');
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)'); 
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
     ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.arc(brushRadius, brushRadius, brushRadius, 0, Math.PI * 2);
@@ -114,7 +112,7 @@ export default function Banner() {
     const brushTexture = PIXI.Texture.from(brushCanvas);
 
     const history = [];
-    const historySize = 60; // Increased for a much longer trail
+    const historySize = 150; // Massively increased for a huge, lingering trail
     
     const renderTexture = PIXI.RenderTexture.create({
       width: window.innerWidth,
@@ -123,25 +121,25 @@ export default function Banner() {
     const rtSprite = new PIXI.Sprite(renderTexture);
     
     const displacementFilter = new PIXI.DisplacementFilter(rtSprite);
-    displacementFilter.scale.x = 150; // Increased distortion
-    displacementFilter.scale.y = 150;
+    displacementFilter.scale.x = 200; // Heavy distortion for the smoky smear
+    displacementFilter.scale.y = 200;
     
     // APPLY DISPLACEMENT ONLY TO THE BACKGROUND LAYER
     mainContainer.filters = [displacementFilter];
 
     const trailContainer = new PIXI.Container();
-    // Add blur to the trail to create a frosted/blurred distortion effect
-    const blurFilter = new PIXI.BlurFilter(8);
+    // Heavy blur to soften the overlapping brushes into a cohesive smoke cloud
+    const blurFilter = new PIXI.BlurFilter(15);
     trailContainer.filters = [blurFilter];
     const brushes = [];
     
     for (let i = 0; i < historySize; i++) {
       const b = new PIXI.Sprite(brushTexture);
       b.anchor.set(0.5);
-      // Sharp fade out and scale down for a comet-like tail
+      // Linear fade to keep the smoke thick for a long time
       const progress = 1 - (i / historySize);
-      b.alpha = Math.pow(progress, 2); 
-      b.scale.set(Math.pow(progress, 1.5));
+      b.alpha = progress; 
+      b.scale.set(progress * 1.2);
       b.x = window.innerWidth / 2;
       b.y = window.innerHeight / 2;
       brushes.push(b);
@@ -173,13 +171,13 @@ export default function Banner() {
       history.pop();
 
       for (let i = 0; i < historySize; i++) {
-        // Add a continuous sinusoidal wobble to each node so the trail actively wriggles like fluid
-        const wobbleX = Math.sin(time + i * 0.3) * (i * 0.5);
-        const wobbleY = Math.cos(time + i * 0.3) * (i * 0.5);
+        // Smoky drift: Stronger, slower sinusoidal wobble to make the tail writhe like smoke
+        const wobbleX = Math.sin(time * 0.5 + i * 0.1) * (i * 0.8);
+        const wobbleY = Math.cos(time * 0.4 + i * 0.1) * (i * 0.8);
 
-        // Lowered from 0.5 to 0.15 for a much more fluid, elastic feel
-        brushes[i].x += ((history[i].x + wobbleX) - brushes[i].x) * 0.15;
-        brushes[i].y += ((history[i].y + wobbleY) - brushes[i].y) * 0.15;
+        // Extremely low easing (0.04) so the tail lags far behind and lingers in the air
+        brushes[i].x += ((history[i].x + wobbleX) - brushes[i].x) * 0.04;
+        brushes[i].y += ((history[i].y + wobbleY) - brushes[i].y) * 0.04;
       }
 
       app.renderer.render(bgFluidSprite, { renderTexture, clear: true });
