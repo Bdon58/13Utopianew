@@ -26,20 +26,29 @@ export default function Banner() {
       autoDensity: true,
     });
 
+    // The main container will hold the background and have the displacement filter
     const mainContainer = new PIXI.Container();
     app.stage.addChild(mainContainer);
 
-    let sprite = null;
-    const imagePaths = [];
+    // The foreground container sits on top and holds the sharp character
+    const fgContainer = new PIXI.Container();
+    app.stage.addChild(fgContainer);
+
+    let bgSprite = null;
+    let fgSprite = null;
+    const bgImagePaths = [];
+    const fgImagePaths = [];
     for (let i = 0; i < TOTAL_FRAMES; i++) {
       const paddedIndex = i.toString().padStart(5, '0');
-      imagePaths.push(`/seq/Comp 1_${paddedIndex}.webp`);
+      bgImagePaths.push(`/seq/Comp 1_${paddedIndex}.webp`);
+      fgImagePaths.push(`/fg_seq/Comp 1_${paddedIndex}.webp`);
     }
 
-    const textures = new Array(TOTAL_FRAMES).fill(null);
+    const bgTextures = new Array(TOTAL_FRAMES).fill(null);
+    const fgTextures = new Array(TOTAL_FRAMES).fill(null);
 
-    const resizeSprite = () => {
-      if (!sprite) return;
+    const resizeSprite = (sprite) => {
+      if (!sprite || !sprite.texture) return;
       const scaleX = window.innerWidth / sprite.texture.width;
       const scaleY = window.innerHeight / sprite.texture.height;
       const scale = Math.max(scaleX, scaleY);
@@ -49,12 +58,26 @@ export default function Banner() {
       sprite.anchor.set(0.5);
     };
 
-    // Load first frame
-    PIXI.Assets.load(imagePaths[0]).then((texture) => {
-      textures[0] = texture;
-      sprite = new PIXI.Sprite(texture);
-      mainContainer.addChild(sprite);
-      resizeSprite();
+    const resizeAll = () => {
+      resizeSprite(bgSprite);
+      resizeSprite(fgSprite);
+    };
+
+    // Load first frame for both layers
+    Promise.all([
+      PIXI.Assets.load(bgImagePaths[0]),
+      PIXI.Assets.load(fgImagePaths[0])
+    ]).then(([bgTex, fgTex]) => {
+      bgTextures[0] = bgTex;
+      fgTextures[0] = fgTex;
+      
+      bgSprite = new PIXI.Sprite(bgTex);
+      mainContainer.addChild(bgSprite);
+      
+      fgSprite = new PIXI.Sprite(fgTex);
+      fgContainer.addChild(fgSprite);
+
+      resizeAll();
 
       // Start loading the rest
       loadRemainingFrames();
@@ -62,13 +85,12 @@ export default function Banner() {
 
     const loadRemainingFrames = async () => {
       for (let i = 1; i < TOTAL_FRAMES; i++) {
-        PIXI.Assets.load(imagePaths[i]).then(tex => {
-          textures[i] = tex;
-        });
+        PIXI.Assets.load(bgImagePaths[i]).then(tex => bgTextures[i] = tex);
+        PIXI.Assets.load(fgImagePaths[i]).then(tex => fgTextures[i] = tex);
       }
     };
 
-    window.addEventListener('resize', resizeSprite);
+    window.addEventListener('resize', resizeAll);
 
     // --- Trail & Distortion Setup ---
     const brushRadius = 80; // Bigger brush at the cursor
@@ -104,6 +126,7 @@ export default function Banner() {
     displacementFilter.scale.x = 150; // Increased distortion
     displacementFilter.scale.y = 150;
     
+    // APPLY DISPLACEMENT ONLY TO THE BACKGROUND LAYER
     mainContainer.filters = [displacementFilter];
 
     const trailContainer = new PIXI.Container();
@@ -134,29 +157,39 @@ export default function Banner() {
     };
     window.addEventListener('pointermove', onPointerMove);
 
-    const bgSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
-    bgSprite.width = window.innerWidth;
-    bgSprite.height = window.innerHeight;
-    bgSprite.tint = 0x808080;
+    const bgFluidSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+    bgFluidSprite.width = window.innerWidth;
+    bgFluidSprite.height = window.innerHeight;
+    bgFluidSprite.tint = 0x808080;
 
     app.ticker.add(() => {
+      const time = Date.now() * 0.002; // For fluid animation
+
+      // Continuously undulate the displacement scale for a breathing liquid effect
+      displacementFilter.scale.x = 150 + Math.sin(time) * 40;
+      displacementFilter.scale.y = 150 + Math.cos(time * 0.8) * 40;
+
       history.unshift({ x: mouse.x, y: mouse.y });
       history.pop();
 
       for (let i = 0; i < historySize; i++) {
+        // Add a continuous sinusoidal wobble to each node so the trail actively wriggles like fluid
+        const wobbleX = Math.sin(time + i * 0.3) * (i * 0.5);
+        const wobbleY = Math.cos(time + i * 0.3) * (i * 0.5);
+
         // Lowered from 0.5 to 0.15 for a much more fluid, elastic feel
-        brushes[i].x += (history[i].x - brushes[i].x) * 0.15;
-        brushes[i].y += (history[i].y - brushes[i].y) * 0.15;
+        brushes[i].x += ((history[i].x + wobbleX) - brushes[i].x) * 0.15;
+        brushes[i].y += ((history[i].y + wobbleY) - brushes[i].y) * 0.15;
       }
 
-      app.renderer.render(bgSprite, { renderTexture, clear: true });
+      app.renderer.render(bgFluidSprite, { renderTexture, clear: true });
       app.renderer.render(trailContainer, { renderTexture, clear: false });
     });
 
     const onResizeRt = () => {
       renderTexture.resize(window.innerWidth, window.innerHeight);
-      bgSprite.width = window.innerWidth;
-      bgSprite.height = window.innerHeight;
+      bgFluidSprite.width = window.innerWidth;
+      bgFluidSprite.height = window.innerHeight;
     };
     window.addEventListener('resize', onResizeRt);
 
@@ -179,8 +212,11 @@ export default function Banner() {
         ease: "power2.inOut",
         onUpdate: () => {
           const currentFrameIndex = Math.floor(frameObj.frame);
-          if (textures[currentFrameIndex] && sprite) {
-            sprite.texture = textures[currentFrameIndex];
+          if (bgTextures[currentFrameIndex] && bgSprite) {
+            bgSprite.texture = bgTextures[currentFrameIndex];
+          }
+          if (fgTextures[currentFrameIndex] && fgSprite) {
+            fgSprite.texture = fgTextures[currentFrameIndex];
           }
         },
         onComplete: () => {
@@ -200,7 +236,7 @@ export default function Banner() {
     });
 
     return () => {
-      window.removeEventListener('resize', resizeSprite);
+      window.removeEventListener('resize', resizeAll);
       window.removeEventListener('resize', onResizeRt);
       window.removeEventListener('pointermove', onPointerMove);
       Observer.getAll().forEach(o => o.kill());
