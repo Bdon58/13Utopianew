@@ -93,7 +93,7 @@ export default function Banner() {
     window.addEventListener('resize', resizeAll);
 
     // --- Trail & Distortion Setup ---
-    const brushRadius = 150; // Massive soft brush for smoky look
+    const brushRadius = 25; // Extremely thin brush
     const brushSize = brushRadius * 2;
     const brushCanvas = document.createElement('canvas');
     brushCanvas.width = brushSize;
@@ -121,8 +121,8 @@ export default function Banner() {
     const rtSprite = new PIXI.Sprite(renderTexture);
     
     const displacementFilter = new PIXI.DisplacementFilter(rtSprite);
-    displacementFilter.scale.x = 200; // Heavy distortion for the smoky smear
-    displacementFilter.scale.y = 200;
+    displacementFilter.scale.x = 1500; // Extreme power for violent distortion
+    displacementFilter.scale.y = 1500;
     
     // APPLY DISPLACEMENT ONLY TO THE BACKGROUND LAYER
     mainContainer.filters = [displacementFilter];
