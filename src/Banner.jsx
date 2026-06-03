@@ -33,7 +33,7 @@ export default function Banner() {
     const imagePaths = [];
     for (let i = 0; i < TOTAL_FRAMES; i++) {
       const paddedIndex = i.toString().padStart(5, '0');
-      imagePaths.push(`/seq/Comp 1_${paddedIndex}.png`);
+      imagePaths.push(`/seq/Comp 1_${paddedIndex}.webp`);
     }
 
     const textures = new Array(TOTAL_FRAMES).fill(null);
