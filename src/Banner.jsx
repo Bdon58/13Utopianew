@@ -175,9 +175,9 @@ export default function Banner() {
         const wobbleX = Math.sin(time * 0.5 + i * 0.1) * (i * 0.8);
         const wobbleY = Math.cos(time * 0.4 + i * 0.1) * (i * 0.8);
 
-        // Extremely low easing (0.04) so the tail lags far behind and lingers in the air
-        brushes[i].x += ((history[i].x + wobbleX) - brushes[i].x) * 0.04;
-        brushes[i].y += ((history[i].y + wobbleY) - brushes[i].y) * 0.04;
+        // High easing (0.6) so the trail sticks instantly to the cursor with no delay
+        brushes[i].x += ((history[i].x + wobbleX) - brushes[i].x) * 0.6;
+        brushes[i].y += ((history[i].y + wobbleY) - brushes[i].y) * 0.6;
       }
 
       app.renderer.render(bgFluidSprite, { renderTexture, clear: true });
