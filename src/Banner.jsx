@@ -71,26 +71,28 @@ export default function Banner() {
     window.addEventListener('resize', resizeSprite);
 
     // --- Trail & Distortion Setup ---
+    const brushRadius = 80; // Bigger brush at the cursor
+    const brushSize = brushRadius * 2;
     const brushCanvas = document.createElement('canvas');
-    brushCanvas.width = 300;
-    brushCanvas.height = 300;
+    brushCanvas.width = brushSize;
+    brushCanvas.height = brushSize;
     const ctx = brushCanvas.getContext('2d');
     
     ctx.fillStyle = '#808080';
-    ctx.fillRect(0, 0, 300, 300);
+    ctx.fillRect(0, 0, brushSize, brushSize);
     
-    const gradient = ctx.createRadialGradient(150, 150, 0, 150, 150, 150);
+    const gradient = ctx.createRadialGradient(brushRadius, brushRadius, 0, brushRadius, brushRadius, brushRadius);
     gradient.addColorStop(0, 'rgba(255, 255, 255, 1)'); 
     gradient.addColorStop(1, 'rgba(128, 128, 128, 0)');
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc(150, 150, 150, 0, Math.PI * 2);
+    ctx.arc(brushRadius, brushRadius, brushRadius, 0, Math.PI * 2);
     ctx.fill();
 
     const brushTexture = PIXI.Texture.from(brushCanvas);
 
     const history = [];
-    const historySize = 20;
+    const historySize = 60; // Increased for a much longer trail
     
     const renderTexture = PIXI.RenderTexture.create({
       width: window.innerWidth,
@@ -99,19 +101,24 @@ export default function Banner() {
     const rtSprite = new PIXI.Sprite(renderTexture);
     
     const displacementFilter = new PIXI.DisplacementFilter(rtSprite);
-    displacementFilter.scale.x = 50; 
-    displacementFilter.scale.y = 50;
+    displacementFilter.scale.x = 150; // Increased distortion
+    displacementFilter.scale.y = 150;
     
     mainContainer.filters = [displacementFilter];
 
     const trailContainer = new PIXI.Container();
+    // Add blur to the trail to create a frosted/blurred distortion effect
+    const blurFilter = new PIXI.BlurFilter(8);
+    trailContainer.filters = [blurFilter];
     const brushes = [];
     
     for (let i = 0; i < historySize; i++) {
       const b = new PIXI.Sprite(brushTexture);
       b.anchor.set(0.5);
-      b.alpha = 1 - (i / historySize);
-      b.scale.set(1 - (i / historySize) * 0.5);
+      // Sharp fade out and scale down for a comet-like tail
+      const progress = 1 - (i / historySize);
+      b.alpha = Math.pow(progress, 2); 
+      b.scale.set(Math.pow(progress, 1.5));
       b.x = window.innerWidth / 2;
       b.y = window.innerHeight / 2;
       brushes.push(b);
@@ -137,8 +144,9 @@ export default function Banner() {
       history.pop();
 
       for (let i = 0; i < historySize; i++) {
-        brushes[i].x += (history[i].x - brushes[i].x) * 0.5;
-        brushes[i].y += (history[i].y - brushes[i].y) * 0.5;
+        // Lowered from 0.5 to 0.15 for a much more fluid, elastic feel
+        brushes[i].x += (history[i].x - brushes[i].x) * 0.15;
+        brushes[i].y += (history[i].y - brushes[i].y) * 0.15;
       }
 
       app.renderer.render(bgSprite, { renderTexture, clear: true });
